@@ -2,7 +2,6 @@
 #ifndef TEAVPN2__SERVER__COMMON_H
 #define TEAVPN2__SERVER__COMMON_H
 
-#include <stdbool.h>
 #include <teavpn2/global/common.h>
 
 typedef struct _server_iface_cfg {
@@ -22,13 +21,22 @@ typedef struct _server_iface_cfg {
 
 
 
-typedef struct server_config {
+typedef struct _socket_cfg {
+  char                  *bind_addr;     /* Socket server bind address. */
+  int                   backlog;        /* Socket listen backlog. */
+  uint16_t              bind_port;      /* Socket server bind port. */
+  socket_type           type;           /* Socket type, TCP/UDP. */
+} socket_cfg;
+
+
+typedef struct _server_cfg {
 
   char                  *config_file;   /* Config file. */
   char                  *data_dir;      /* Data directory. */
   server_iface_cfg      iface;          /* Virtual interface configuration. */
+  socket_cfg            sock;           /* Socket configuration. */
 
-} server_config;
+} server_cfg;
 
 
 
@@ -37,8 +45,13 @@ bool tvpn_server_argv_parse(
   int argc,
   char *argv[],
   char *envp[],
-  server_config *config
+  server_cfg *config
 );
 /* End of argv_parser */
+
+
+/* config */
+bool tvpn_server_load_config_file(char *file, server_cfg *config);
+/* End of config */
 
 #endif

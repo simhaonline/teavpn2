@@ -1,0 +1,77 @@
+
+name: C/C++ (Linux)
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+  main:
+    name: Build and Test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-18.04 ]
+
+        target: [ clang-9.0.0, clang-8.0.0, g++-9, g++-8 ]
+
+        include:
+          - { target: clang-9.0.0, compiler: clang, cxx-version: 9.0.0 }
+          - { target: clang-8.0.0, compiler: clang, cxx-version: 8.0.0 }
+
+          - { target: g++-9, compiler: g++, cxx-version: 9.3.0 }
+          - { target: g++-8, compiler: g++, cxx-version: 8.4.0 }
+
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: sudo apt-get install valgrind -y
+      run: sudo apt-get install valgrind -y
+
+    #################### Unit tests #################### 
+    - name: env DEFAULT_OPTIMIZATION=-O1 make test -j$(nproc)
+      run: env DEFAULT_OPTIMIZATION=-O1 make test -j$(nproc)
+
+    - name: make clean -j$(nproc)
+      run: make clean -j$(nproc)
+
+    - name: env DEFAULT_OPTIMIZATION=-O2 make test -j$(nproc)
+      run: env DEFAULT_OPTIMIZATION=-O2 make test -j$(nproc)
+
+    - name: make clean -j$(nproc)
+      run: make clean -j$(nproc)
+
+    - name: env DEFAULT_OPTIMIZATION=-O3 make test -j$(nproc)
+      run: env DEFAULT_OPTIMIZATION=-O3 make test -j$(nproc)
+
+    - name: make clean -j$(nproc)
+      run: make clean -j$(nproc)
+    #################### End of unit tests ####################
+
+    - name: env RELEASE_MODE=1 DEFAULT_OPTIMIZATION=-O3 make -j$(nproc)
+      run: env RELEASE_MODE=1 DEFAULT_OPTIMIZATION=-O3 make -j$(nproc)
+
+    - name: Strip the release binaries
+      run: |
+        strip -s teavpn_server
+        strip -s teavpn_client
+
+    ########################################
+    #      Store generated artifacts       #
+    ########################################
+    - name: Store teavpn_server artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: teavpn_server
+        path: teavpn_server
+
+    - name: Store teavpn_client artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: teavpn_client
+        path: teavpn_client

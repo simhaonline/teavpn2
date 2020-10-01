@@ -4,7 +4,7 @@
 CC     = cc
 CXX    = c++
 NASM   = nasm
-LINKER = c++
+LINKER = $(CXX)
 
 # Source and include directories.
 SRC_DIR     = src
@@ -16,30 +16,40 @@ GLOBAL_SOURCE_DIR = $(SOURCES_DIR)/teavpn2/global
 CLIENT_SOURCE_DIR = $(SOURCES_DIR)/teavpn2/client
 SERVER_SOURCE_DIR = $(SOURCES_DIR)/teavpn2/server
 
-# C/C++ compile flag.
-CC_COMPILE_FLAGS  = -std=c99 $(INCLUDE_DIR) -c
-CXX_COMPILE_FLAGS = -std=c++17 $(INCLUDE_DIR) -D_GLIBCXX_ASSERTIONS -c
+ifndef DEFAULT_OPTIMIZATION
+	DEFAULT_OPTIMIZATION = -O0
+endif
 
-LIB_LINK_FLAGS    = -lpthread
+# C/C++ compile flags.
+CFLAGS   = -std=c99 $(INCLUDE_DIR) -c
+CXXFLAGS = -std=c++17 $(INCLUDE_DIR) -D_GLIBCXX_ASSERTIONS -c
+
+LIB_LDFLAGS    = -lpthread
 
 ifeq ($(RELEASE_MODE),1)
 
 	# Compile flags that apply to CC and CXX.
-	CCCXX_COMPILE_FLAGS = -s -fno-stack-protector -Ofast -fPIC -fasynchronous-unwind-tables -fexceptions -mstackrealign -DNDEBUG -D_GNU_SOURCE -D_REENTRANT
+	CCXXFLAGS = -Wall -Wextra -s -fno-stack-protector -O3 -fPIC -fasynchronous-unwind-tables -fexceptions -mstackrealign -DNDEBUG -D_GNU_SOURCE -D_REENTRANT
 
 	# Link flags
-	LINK_FLAGS = -s -Ofast -fPIC
+	LDFLAGS = -Wall -Wextra -O3 -fPIC
 
 else
 
 	# Compile flags that apply to CC and CXX.
-	CCCXX_COMPILE_FLAGS = -fstack-protector-strong -ggdb3 -O0 -grecord-gcc-switches -fPIC -fasynchronous-unwind-tables -fexceptions -mstackrealign -D_GNU_SOURCE -D_REENTRANT -DTEAVPN_DEBUG
+	CCXXFLAGS = -Wall -Wextra -fstack-protector-strong -ggdb3 $(DEFAULT_OPTIMIZATION) -grecord-gcc-switches -fPIC -fasynchronous-unwind-tables -fexceptions -mstackrealign -D_GNU_SOURCE -D_REENTRANT -DTEAVPN_DEBUG
 
 	# Link flags
-	LINK_FLAGS = -ggdb3 -O0 -fPIC
+	LDFLAGS = -Wall -Wextra -ggdb3 $(DEFAULT_OPTIMIZATION) -fPIC
 
 endif
 
+ifndef TEST_JOBS
+	TEST_JOBS = 1
+endif
+
+CFLAGS   := $(CFLAGS) $(CCXXFLAGS)
+CXXFLAGS := $(CXXFLAGS) $(CCXXFLAGS)
 
 # Target compile.
 CLIENT_BIN = teavpn_client
@@ -65,8 +75,8 @@ GLOBAL_OBJECTS     += $(GLOBAL_CXX_OBJECTS)
 GLOBAL_DIR_L     = $(shell find ${GLOBAL_SOURCE_DIR} -type d)
 GLOBAL_DEPDIR    = $(GLOBAL_DIR_L:%=${ROOT_DEPDIR}/%)
 GLOBAL_DEPFLAGS  = -MT $@ -MMD -MP -MF ${ROOT_DEPDIR}/$*.d
-GLOBAL_DEPFILES  = $(GLOBAL_CC_SOURCES:%=${ROOT_DEPDIR}/%.d})
-GLOBAL_DEPFILES += $(GLOBAL_CXX_SOURCES:%=${ROOT_DEPDIR}/%.d})
+GLOBAL_DEPFILES  = $(GLOBAL_CC_SOURCES:%=${ROOT_DEPDIR}/%.d)
+GLOBAL_DEPFILES += $(GLOBAL_CXX_SOURCES:%=${ROOT_DEPDIR}/%.d)
 ###################### End of Global Part ######################
 
 
@@ -89,8 +99,8 @@ CLIENT_OBJECTS     += $(CLIENT_CXX_OBJECTS)
 CLIENT_DIR_L     = $(shell find ${CLIENT_SOURCE_DIR} -type d)
 CLIENT_DEPDIR    = $(CLIENT_DIR_L:%=${ROOT_DEPDIR}/%)
 CLIENT_DEPFLAGS  = -MT $@ -MMD -MP -MF ${ROOT_DEPDIR}/$*.d
-CLIENT_DEPFILES  = $(CLIENT_CC_SOURCES:%=${ROOT_DEPDIR}/%.d})
-CLIENT_DEPFILES += $(CLIENT_CXX_SOURCES:%=${ROOT_DEPDIR}/%.d})
+CLIENT_DEPFILES  = $(CLIENT_CC_SOURCES:%=${ROOT_DEPDIR}/%.d)
+CLIENT_DEPFILES += $(CLIENT_CXX_SOURCES:%=${ROOT_DEPDIR}/%.d)
 ###################### End of Client Part ######################
 
 
@@ -113,8 +123,8 @@ SERVER_OBJECTS     += $(SERVER_CXX_OBJECTS)
 SERVER_DIR_L     = $(shell find ${SERVER_SOURCE_DIR} -type d)
 SERVER_DEPDIR    = $(SERVER_DIR_L:%=${ROOT_DEPDIR}/%)
 SERVER_DEPFLAGS  = -MT $@ -MMD -MP -MF ${ROOT_DEPDIR}/$*.d
-SERVER_DEPFILES  = $(SERVER_CC_SOURCES:%=${ROOT_DEPDIR}/%.d})
-SERVER_DEPFILES += $(SERVER_CXX_SOURCES:%=${ROOT_DEPDIR}/%.d})
+SERVER_DEPFILES  = $(SERVER_CC_SOURCES:%=${ROOT_DEPDIR}/%.d)
+SERVER_DEPFILES += $(SERVER_CXX_SOURCES:%=${ROOT_DEPDIR}/%.d)
 ###################### End of Server Part ######################
 
 
@@ -135,11 +145,11 @@ global: $(GLOBAL_OBJECTS)
 $(GLOBAL_DEPDIR): | $(ROOT_DEPDIR)
 	mkdir -pv $@
 
-$(GLOBAL_CC_OBJECTS): | $(GLOBAL_DEPDIR)
-	$(CC) $(GLOBAL_DEPFLAGS) $(CC_COMPILE_FLAGS) $(CCCXX_COMPILE_FLAGS) $(@:%.o=%) -o $@
+$(GLOBAL_CC_OBJECTS): Makefile | $(GLOBAL_DEPDIR)
+	$(CC) $(GLOBAL_DEPFLAGS) $(CFLAGS) $(@:%.o=%) -o $@
 
-$(GLOBAL_CXX_OBJECTS): | $(GLOBAL_DEPDIR)
-	$(CXX) $(GLOBAL_DEPFLAGS) $(CXX_COMPILE_FLAGS) $(CCCXX_COMPILE_FLAGS) $(@:%.o=%) -o $@
+$(GLOBAL_CXX_OBJECTS): Makefile | $(GLOBAL_DEPDIR)
+	$(CXX) $(GLOBAL_DEPFLAGS) $(CXXFLAGS) $(@:%.o=%) -o $@
 
 -include $(GLOBAL_DEPFILES)
 ###################### End of build global sources ######################
@@ -152,16 +162,16 @@ client: $(CLIENT_BIN)
 $(CLIENT_DEPDIR): | $(ROOT_DEPDIR)
 	mkdir -pv $@
 
-$(CLIENT_CC_OBJECTS): | $(CLIENT_DEPDIR)
-	$(CC) $(CLIENT_DEPFLAGS) $(CC_COMPILE_FLAGS) $(CCCXX_COMPILE_FLAGS) $(@:%.o=%) -o $@
+$(CLIENT_CC_OBJECTS): Makefile | $(CLIENT_DEPDIR)
+	$(CC) $(CLIENT_DEPFLAGS) $(CFLAGS) $(@:%.o=%) -o $@
 
-$(CLIENT_CXX_OBJECTS): | $(CLIENT_DEPDIR)
-	$(CXX) $(CLIENT_DEPFLAGS) $(CXX_COMPILE_FLAGS) $(CCCXX_COMPILE_FLAGS) $(@:%.o=%) -o $@
+$(CLIENT_CXX_OBJECTS): Makefile | $(CLIENT_DEPDIR)
+	$(CXX) $(CLIENT_DEPFLAGS) $(CXXFLAGS) $(@:%.o=%) -o $@
 
 -include $(CLIENT_DEPFILES)
 
-$(CLIENT_BIN): $(GLOBAL_OBJECTS) $(CLIENT_OBJECTS)
-	$(LINKER) $(LINK_FLAGS) -o $@ $(CLIENT_OBJECTS) $(GLOBAL_OBJECTS) $(LIB_LINK_FLAGS)
+$(CLIENT_BIN): Makefile $(GLOBAL_OBJECTS) $(CLIENT_OBJECTS)
+	$(LINKER) $(LDFLAGS) -o $@ $(CLIENT_OBJECTS) $(GLOBAL_OBJECTS) $(LIB_LDFLAGS)
 ###################### End of build client sources ######################
 
 
@@ -172,22 +182,49 @@ server: $(SERVER_BIN)
 $(SERVER_DEPDIR): | $(ROOT_DEPDIR)
 	mkdir -pv $@
 
-$(SERVER_CC_OBJECTS): | $(SERVER_DEPDIR)
-	$(CC) $(SERVER_DEPFLAGS) $(CC_COMPILE_FLAGS) $(CCCXX_COMPILE_FLAGS) $(@:%.o=%) -o $@
+$(SERVER_CC_OBJECTS): Makefile | $(SERVER_DEPDIR)
+	$(CC) $(SERVER_DEPFLAGS) $(CFLAGS) $(@:%.o=%) -o $@
 
-$(SERVER_CXX_OBJECTS): | $(SERVER_DEPDIR)
-	$(CXX) $(SERVER_DEPFLAGS) $(CXX_COMPILE_FLAGS) $(CCCXX_COMPILE_FLAGS) $(@:%.o=%) -o $@
+$(SERVER_CXX_OBJECTS): Makefile | $(SERVER_DEPDIR)
+	$(CXX) $(SERVER_DEPFLAGS) $(CXXFLAGS) $(@:%.o=%) -o $@
 
 -include $(SERVER_DEPFILES)
 
-$(SERVER_BIN): $(GLOBAL_OBJECTS) $(SERVER_OBJECTS)
-	$(LINKER) $(LINK_FLAGS) -o $@ $(SERVER_OBJECTS) $(GLOBAL_OBJECTS) $(LIB_LINK_FLAGS)
+$(SERVER_BIN): Makefile $(GLOBAL_OBJECTS) $(SERVER_OBJECTS)
+	$(LINKER) $(LDFLAGS) -o $@ $(SERVER_OBJECTS) $(GLOBAL_OBJECTS) $(LIB_LDFLAGS)
 ###################### End of build server sources ######################
 
+test: $(GLOBAL_OBJECTS) $(SERVER_OBJECTS) $(CLIENT_OBJECTS)
+	@cd tests && \
+	env INCLUDE_DIR="$(INCLUDE_DIR)" \
+	CC="$(CC)" \
+	CXX="$(CC)" \
+	LIB_LDFLAGS="$(LIB_LDFLAGS)" \
+	LDFLAGS="$(LDFLAGS)" \
+	GLOBAL_OBJECTS="$(GLOBAL_OBJECTS)" \
+	SERVER_OBJECTS="$(SERVER_OBJECTS)" \
+	CLIENT_OBJECTS="$(CLIENT_OBJECTS)" \
+	ROOT_DEPDIR="$(ROOT_DEPDIR)" \
+	DEFAULT_OPTIMIZATION="$(DEFAULT_OPTIMIZATION)" \
+	$(MAKE) -j $(TEST_JOBS) -f test.mk
+
+test_clean:
+	@cd tests && \
+	env INCLUDE_DIR="$(INCLUDE_DIR)" \
+	CC="$(CC)" \
+	CXX="$(CC)" \
+	LIB_LDFLAGS="$(LIB_LDFLAGS)" \
+	LDFLAGS="$(LDFLAGS)" \
+	GLOBAL_OBJECTS="$(GLOBAL_OBJECTS)" \
+	SERVER_OBJECTS="$(SERVER_OBJECTS)" \
+	CLIENT_OBJECTS="$(CLIENT_OBJECTS)" \
+	CLEAN=1 \
+	ROOT_DEPDIR="$(ROOT_DEPDIR)" \
+	$(MAKE) --no-print-directory -j $(TEST_JOBS) -f test.mk
 
 
 ###################### Cleaning part ######################
-clean: clean_global clean_client clean_server
+clean: clean_global clean_client clean_server test_clean
 	rm -rfv $(ROOT_DEPDIR)
 
 clean_global:
