@@ -231,9 +231,7 @@ test_clean:
 	$(MAKE) -s --no-print-directory -j $(TEST_JOBS) -f test.mk
 
 gcov: test $(SERVER_BIN) $(CLIENT_BIN)
-	$(SERVER_BIN) -c config/server.ini
-	$(CLIENT_BIN) -c config/client.ini
-	find -O2 . \( -name '*.gcno' -o -name '*.gcda' \) | xargs gcov -xl
+	find -O2 . \( -name '*.gcno' -o -name '*.gcda' \) | xargs gcov -xa
 
 
 
