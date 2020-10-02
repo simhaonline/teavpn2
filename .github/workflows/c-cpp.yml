@@ -37,7 +37,7 @@ jobs:
     - name: Run unit tests and gcov
       run: env DEFAULT_OPTIMIZATION=-O1 make gcov COVERAGE=1 -j$(nproc)
     - name: Codecov report
-      run: bash <(curl -s https://codecov.io/bash)
+      run: bash .github/codecov.sh -X gcov
     #################### End of unit tests and codecov ####################
 
     - name: Cleaning unit tests and codecov
